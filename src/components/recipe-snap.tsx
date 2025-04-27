@@ -242,8 +242,9 @@ export function RecipeSnap() {
           <CardTitle className="text-3xl font-bold flex items-center gap-2"><ChefHat size={32}/> MyRecipeSnap</CardTitle>
           <CardDescription className="text-secondary-foreground/80">Upload a photo or use your camera to identify food and get a recipe!</CardDescription>
         </div>
+         {/* Placeholder Image: Replace src with the actual logo path when available */}
          <Image
-            src="https://picsum.photos/50/50" // Placeholder logo
+            src="https://picsum.photos/50/50" // Placeholder logo - Replace with actual logo path
             alt="MyRecipeSnap Logo"
             width={50}
             height={50}
@@ -263,8 +264,8 @@ export function RecipeSnap() {
              }
             }}>
              <TabsList className="grid w-full grid-cols-2 bg-muted p-1 rounded-md">
-               <TabsTrigger value="upload" className="data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm rounded-sm">Upload a File</TabsTrigger>
-               <TabsTrigger value="camera" className="data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm rounded-sm">Capture with Camera</TabsTrigger>
+               <TabsTrigger value="upload" className="data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm rounded-sm data-[state=active]:bg-muted/80">Upload a File</TabsTrigger>
+               <TabsTrigger value="camera" className="data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm rounded-sm data-[state=active]:bg-muted/80">Capture with Camera</TabsTrigger>
              </TabsList>
              <TabsContent value="upload" className="mt-4">
                 <div className="space-y-2">
@@ -406,5 +407,3 @@ export function RecipeSnap() {
     </Card>
   );
 }
-
-    
