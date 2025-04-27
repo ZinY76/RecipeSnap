@@ -242,9 +242,9 @@ export function RecipeSnap() {
           <CardTitle className="text-3xl font-bold flex items-center gap-2"><ChefHat size={32}/> MyRecipeSnap</CardTitle>
           <CardDescription className="text-secondary-foreground/80">Upload a photo or use your camera to identify food and get a recipe!</CardDescription>
         </div>
-         {/* Placeholder Image: Replace src with the actual logo path when available */}
+         {/* Updated Image src */}
          <Image
-            src="https://ibb.co/Mx5FCkxJ" // Placeholder logo - Replace with actual logo path
+            src="https://i.ibb.co/bMRcK5MG/ZinYaw.jpg" // Updated logo path
             alt="MyRecipeSnap Logo"
             width={50}
             height={50}
