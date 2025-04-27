@@ -12,7 +12,7 @@ const nextConfig: NextConfig = {
     remotePatterns: [
       {
         protocol: 'https',
-        hostname: 'picsum.photos',
+        hostname: 'www.facebook.com',
         port: '',
         pathname: '/**',
       },
