@@ -244,7 +244,7 @@ export function RecipeSnap() {
         </div>
          {/* Placeholder Image: Replace src with the actual logo path when available */}
          <Image
-            src="https://www.facebook.com/photo?fbid=621312553444288&set=a.431431575765721" // Placeholder logo - Replace with actual logo path
+            src="https://ibb.co/Mx5FCkxJ" // Placeholder logo - Replace with actual logo path
             alt="MyRecipeSnap Logo"
             width={50}
             height={50}

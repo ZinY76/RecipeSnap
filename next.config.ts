@@ -12,7 +12,7 @@ const nextConfig: NextConfig = {
     remotePatterns: [
       {
         protocol: 'https',
-        hostname: 'www.facebook.com',
+        hostname: 'ibb.co',
         port: '',
         pathname: '/**',
       },
