@@ -1,6 +1,7 @@
+
 "use client";
 
-import React, { useState, useRef, type ChangeEvent } from "react";
+import React, { useState, useRef, type ChangeEvent, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -11,7 +12,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { identifyFoodItems, type IdentifyFoodItemsOutput } from "@/ai/flows/identify-food";
 import { generateRecipe, type GenerateRecipeOutput } from "@/ai/flows/generate-recipe";
-import { Camera, ChefHat, ImageUp, Loader2, UtensilsCrossed } from "lucide-react";
+import { Camera, ChefHat, ImageUp, Loader2, UtensilsCrossed, AlertCircle } from "lucide-react";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+
 
 export function RecipeSnap() {
   const [identifiedItems, setIdentifiedItems] = useState<string[]>([]);
@@ -21,10 +24,49 @@ export function RecipeSnap() {
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [currentDataUri, setCurrentDataUri] = useState<string | null>(null);
   const [showCamera, setShowCamera] = useState(false);
+  const [hasCameraPermission, setHasCameraPermission] = useState<boolean | null>(null); // Added state for camera permission
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
+
+  // Effect to handle camera permission and stream setup
+  useEffect(() => {
+    const getCameraPermission = async () => {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+        setHasCameraPermission(true);
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream;
+        }
+        // Stop stream immediately if camera is not meant to be shown initially
+        if (!showCamera && videoRef.current && videoRef.current.srcObject) {
+           const currentStream = videoRef.current.srcObject as MediaStream;
+           currentStream.getTracks().forEach(track => track.stop());
+           videoRef.current.srcObject = null;
+         }
+
+      } catch (error) {
+        console.error('Error accessing camera:', error);
+        setHasCameraPermission(false);
+        // Toast is shown when trying to start camera explicitly
+      }
+    };
+
+    // Only request permission if needed, avoid requesting on initial load unless camera tab starts active
+     if (showCamera || hasCameraPermission === null) {
+        getCameraPermission();
+     }
+
+    // Cleanup function to stop tracks when component unmounts or showCamera becomes false
+    return () => {
+      if (videoRef.current && videoRef.current.srcObject) {
+        const stream = videoRef.current.srcObject as MediaStream;
+        stream.getTracks().forEach(track => track.stop());
+      }
+    };
+  }, [showCamera]); // Rerun when showCamera changes
+
 
   const handleFileChange = (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -43,38 +85,62 @@ export function RecipeSnap() {
   };
 
   const startCamera = async () => {
-    setShowCamera(true);
     setPreviewUrl(null); // Clear file preview
     setCurrentDataUri(null);
     setIdentifiedItems([]);
     setRecipe(null);
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-      }
-    } catch (err) {
-      console.error("Error accessing camera:", err);
-      toast({
-        title: "Camera Error",
-        description: "Could not access the camera. Please ensure permissions are granted.",
-        variant: "destructive",
-      });
-      setShowCamera(false);
+    setShowCamera(true); // Set state to show camera
+
+    if (hasCameraPermission === false) {
+       toast({
+         variant: 'destructive',
+         title: 'Camera Access Denied',
+         description: 'Please enable camera permissions in your browser settings to use this feature.',
+       });
+       setShowCamera(false); // Don't show camera UI if permission denied
+       return;
     }
+
+    // Re-request permission if it wasn't granted before or status unknown
+     if (hasCameraPermission !== true) {
+       try {
+         const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+         setHasCameraPermission(true);
+         if (videoRef.current) {
+           videoRef.current.srcObject = stream;
+         }
+       } catch (err) {
+         console.error("Error accessing camera:", err);
+         setHasCameraPermission(false);
+         toast({
+           variant: 'destructive',
+           title: 'Camera Access Denied',
+           description: 'Could not access the camera. Please ensure permissions are granted and reload.',
+         });
+         setShowCamera(false);
+       }
+     } else if (videoRef.current && !videoRef.current.srcObject) {
+        // If permission exists but stream isn't set (e.g., after stopping), get it again
+        const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+        if (videoRef.current) {
+            videoRef.current.srcObject = stream;
+        }
+     }
   };
+
 
   const stopCamera = () => {
-    if (videoRef.current && videoRef.current.srcObject) {
-      const stream = videoRef.current.srcObject as MediaStream;
-      stream.getTracks().forEach(track => track.stop());
-      videoRef.current.srcObject = null;
-    }
-    setShowCamera(false);
+     setShowCamera(false); // Update state first
+     if (videoRef.current && videoRef.current.srcObject) {
+       const stream = videoRef.current.srcObject as MediaStream;
+       stream.getTracks().forEach(track => track.stop());
+       videoRef.current.srcObject = null; // Ensure srcObject is cleared
+     }
   };
 
+
   const capturePhoto = () => {
-    if (videoRef.current && canvasRef.current) {
+    if (videoRef.current && canvasRef.current && videoRef.current.readyState >= videoRef.current.HAVE_CURRENT_DATA) {
       const video = videoRef.current;
       const canvas = canvasRef.current;
       canvas.width = video.videoWidth;
@@ -89,6 +155,8 @@ export function RecipeSnap() {
         setRecipe(null);
         stopCamera();
       }
+    } else {
+       toast({ title: "Camera Not Ready", description: "Please wait for the camera feed to load.", variant: "destructive" });
     }
   };
 
@@ -105,7 +173,7 @@ export function RecipeSnap() {
       const result: IdentifyFoodItemsOutput = await identifyFoodItems({ photoDataUri: currentDataUri });
       setIdentifiedItems(result.foodItems || []);
       if (!result.foodItems || result.foodItems.length === 0) {
-         toast({ title: "No Food Found", description: "Could not identify any food items in the image.", variant: "destructive" });
+         toast({ title: "No Food Found", description: "Could not identify any food items in the image.", variant: "default" }); // Changed to default variant
       }
     } catch (error) {
       console.error("Error identifying food:", error);
@@ -146,10 +214,10 @@ export function RecipeSnap() {
         {/* Image Input Section */}
         <div className="space-y-4">
           <h3 className="text-xl font-semibold text-foreground flex items-center gap-2"><ImageUp size={24} /> Image Input</h3>
-           <Tabs defaultValue="upload" className="w-full">
+           <Tabs defaultValue="upload" className="w-full" onValueChange={(value) => { if (value === 'upload') stopCamera(); else startCamera(); }}>
              <TabsList className="grid w-full grid-cols-2 bg-muted p-1 rounded-md">
-               <TabsTrigger value="upload" className="data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm rounded-sm" onClick={() => { if (showCamera) stopCamera(); }}>Upload a File</TabsTrigger>
-               <TabsTrigger value="camera" className="data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm rounded-sm" onClick={startCamera}>Capture with Camera</TabsTrigger>
+               <TabsTrigger value="upload" className="data-[state=active]:bg-secondary data-[state=active]:text-secondary-foreground data-[state=active]:shadow-sm rounded-sm">Upload a File</TabsTrigger>
+               <TabsTrigger value="camera" className="data-[state=active]:bg-secondary data-[state=active]:text-secondary-foreground data-[state=active]:shadow-sm rounded-sm">Capture with Camera</TabsTrigger>
              </TabsList>
              <TabsContent value="upload" className="mt-4">
                 <div className="space-y-2">
@@ -158,20 +226,32 @@ export function RecipeSnap() {
                 </div>
              </TabsContent>
               <TabsContent value="camera" className="mt-4 space-y-4">
-               {showCamera && (
-                 <>
-                   <video ref={videoRef} autoPlay playsInline className="w-full h-auto rounded-md border bg-muted"></video>
-                   <div className="flex justify-center gap-2">
-                     <Button onClick={capturePhoto} variant="outline" size="sm" className="bg-secondary hover:bg-secondary/90">
-                       <Camera className="mr-2 h-4 w-4" /> Capture Photo
-                     </Button>
-                     <Button onClick={stopCamera} variant="ghost" size="sm">
-                        Cancel
-                     </Button>
-                   </div>
+                {/* Video element always rendered for ref stability */}
+                <video ref={videoRef} playsInline muted className={`w-full h-auto rounded-md border bg-muted ${!showCamera ? 'hidden' : ''}`}></video>
 
-                 </>
-               )}
+                {/* Show camera controls only when camera should be active */}
+                {showCamera && (
+                  <div className="flex justify-center gap-2">
+                    <Button onClick={capturePhoto} variant="outline" size="sm" className="bg-secondary hover:bg-secondary/90" disabled={hasCameraPermission !== true}>
+                      <Camera className="mr-2 h-4 w-4" /> Capture Photo
+                    </Button>
+                    <Button onClick={stopCamera} variant="ghost" size="sm">
+                       Cancel
+                    </Button>
+                  </div>
+                )}
+
+                {/* Show alert if permission is denied */}
+               {hasCameraPermission === false && !showCamera && (
+                   <Alert variant="destructive">
+                       <AlertCircle className="h-4 w-4" />
+                       <AlertTitle>Camera Access Required</AlertTitle>
+                       <AlertDescription>
+                         Camera access was denied or is unavailable. Please enable it in your browser settings.
+                       </AlertDescription>
+                   </Alert>
+                )}
+                {/* Hidden canvas for capturing photo */}
                <canvas ref={canvasRef} style={{ display: 'none' }}></canvas>
               </TabsContent>
            </Tabs>
