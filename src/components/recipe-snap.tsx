@@ -148,8 +148,8 @@ export function RecipeSnap() {
           <h3 className="text-xl font-semibold text-foreground flex items-center gap-2"><ImageUp size={24} /> Image Input</h3>
            <Tabs defaultValue="upload" className="w-full">
              <TabsList className="grid w-full grid-cols-2 bg-muted p-1 rounded-md">
-               <TabsTrigger value="upload" className="data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm rounded-sm" onClick={() => { if (showCamera) stopCamera(); }}>Upload</TabsTrigger>
-               <TabsTrigger value="camera" className="data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm rounded-sm" onClick={startCamera}>Camera</TabsTrigger>
+               <TabsTrigger value="upload" className="data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm rounded-sm" onClick={() => { if (showCamera) stopCamera(); }}>Upload a File</TabsTrigger>
+               <TabsTrigger value="camera" className="data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm rounded-sm" onClick={startCamera}>Capture with Camera</TabsTrigger>
              </TabsList>
              <TabsContent value="upload" className="mt-4">
                 <div className="space-y-2">
