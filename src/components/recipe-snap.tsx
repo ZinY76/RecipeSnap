@@ -12,7 +12,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { identifyFoodItems, type IdentifyFoodItemsOutput } from "@/ai/flows/identify-food";
 import { generateRecipe, type GenerateRecipeOutput } from "@/ai/flows/generate-recipe";
-import { Camera, ChefHat, ImageUp, Loader2, UtensilsCrossed, AlertCircle } from "lucide-react";
+import { Camera, ChefHat, ImageUp, Loader2, UtensilsCrossed, AlertCircle, XCircle } from "lucide-react"; // Added XCircle
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 
@@ -79,6 +79,7 @@ export function RecipeSnap() {
         setIdentifiedItems([]);
         setRecipe(null);
         setShowCamera(false); // Hide camera if a file is uploaded
+        stopCamera(); // Ensure camera is stopped if active
       };
       reader.readAsDataURL(file);
     }
@@ -89,6 +90,9 @@ export function RecipeSnap() {
     setCurrentDataUri(null);
     setIdentifiedItems([]);
     setRecipe(null);
+     if (fileInputRef.current) {
+      fileInputRef.current.value = ''; // Clear file input
+    }
     setShowCamera(true); // Set state to show camera
 
     if (hasCameraPermission === false) {
@@ -121,16 +125,27 @@ export function RecipeSnap() {
        }
      } else if (videoRef.current && !videoRef.current.srcObject) {
         // If permission exists but stream isn't set (e.g., after stopping), get it again
-        const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-        if (videoRef.current) {
-            videoRef.current.srcObject = stream;
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+            if (videoRef.current) {
+                videoRef.current.srcObject = stream;
+            }
+        } catch (err) {
+             console.error("Error re-accessing camera:", err);
+             setHasCameraPermission(false); // Update state if access fails now
+             toast({
+               variant: 'destructive',
+               title: 'Camera Access Error',
+               description: 'Failed to re-activate the camera.',
+             });
+             setShowCamera(false);
         }
      }
   };
 
 
   const stopCamera = () => {
-     setShowCamera(false); // Update state first
+     // No need to update showCamera state here, it's handled by tab changes or capture/clear
      if (videoRef.current && videoRef.current.srcObject) {
        const stream = videoRef.current.srcObject as MediaStream;
        stream.getTracks().forEach(track => track.stop());
@@ -153,7 +168,8 @@ export function RecipeSnap() {
         setCurrentDataUri(dataUri);
         setIdentifiedItems([]);
         setRecipe(null);
-        stopCamera();
+        setShowCamera(false); // Hide camera view after capture
+        stopCamera(); // Stop camera stream
       }
     } else {
        toast({ title: "Camera Not Ready", description: "Please wait for the camera feed to load.", variant: "destructive" });
@@ -204,6 +220,19 @@ export function RecipeSnap() {
     }
   };
 
+   const handleClearImage = () => {
+    setPreviewUrl(null);
+    setCurrentDataUri(null);
+    setIdentifiedItems([]);
+    setRecipe(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = ''; // Clear file input
+    }
+    setShowCamera(false); // Ensure camera view is hidden
+    stopCamera(); // Ensure camera is stopped
+    toast({ title: "Image Cleared", description: "Image and results have been reset.", variant: "default" });
+  };
+
   return (
     <Card className="w-full shadow-lg rounded-lg overflow-hidden bg-card">
       <CardHeader className="bg-primary text-primary-foreground p-6">
@@ -214,10 +243,17 @@ export function RecipeSnap() {
         {/* Image Input Section */}
         <div className="space-y-4">
           <h3 className="text-xl font-semibold text-foreground flex items-center gap-2"><ImageUp size={24} /> Image Input</h3>
-           <Tabs defaultValue="upload" className="w-full" onValueChange={(value) => { if (value === 'upload') stopCamera(); else startCamera(); }}>
+           <Tabs defaultValue="upload" className="w-full" onValueChange={(value) => {
+             if (value === 'upload') {
+                setShowCamera(false);
+                stopCamera();
+             } else {
+                startCamera();
+             }
+            }}>
              <TabsList className="grid w-full grid-cols-2 bg-muted p-1 rounded-md">
-               <TabsTrigger value="upload" className="data-[state=active]:bg-border data-[state=active]:text-foreground data-[state=active]:shadow-sm rounded-sm">Upload a File</TabsTrigger>
-               <TabsTrigger value="camera" className="data-[state=active]:bg-border data-[state=active]:text-foreground data-[state=active]:shadow-sm rounded-sm">Capture with Camera</TabsTrigger>
+               <TabsTrigger value="upload" className="data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm rounded-sm">Upload a File</TabsTrigger>
+               <TabsTrigger value="camera" className="data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm rounded-sm">Capture with Camera</TabsTrigger>
              </TabsList>
              <TabsContent value="upload" className="mt-4">
                 <div className="space-y-2">
@@ -227,7 +263,7 @@ export function RecipeSnap() {
              </TabsContent>
               <TabsContent value="camera" className="mt-4 space-y-4">
                 {/* Video element always rendered for ref stability */}
-                <video ref={videoRef} playsInline muted className={`w-full h-auto rounded-md border bg-muted ${!showCamera ? 'hidden' : ''}`}></video>
+                <video ref={videoRef} playsInline muted autoPlay className={`w-full h-auto rounded-md border bg-muted ${!showCamera ? 'hidden' : ''}`}></video>
 
                 {/* Show camera controls only when camera should be active */}
                 {showCamera && (
@@ -235,19 +271,29 @@ export function RecipeSnap() {
                     <Button onClick={capturePhoto} variant="outline" size="sm" className="bg-secondary hover:bg-secondary/90" disabled={hasCameraPermission !== true}>
                       <Camera className="mr-2 h-4 w-4" /> Capture Photo
                     </Button>
-                    <Button onClick={stopCamera} variant="ghost" size="sm">
+                    <Button onClick={() => { setShowCamera(false); stopCamera(); }} variant="ghost" size="sm"> {/* More explicit cancel */}
                        Cancel
                     </Button>
                   </div>
                 )}
 
-                {/* Show alert if permission is denied */}
-               {hasCameraPermission === false && !showCamera && (
+                {/* Show alert if permission is denied AND camera tab is active but camera isn't showing */}
+               {hasCameraPermission === false && showCamera && (
                    <Alert variant="destructive">
                        <AlertCircle className="h-4 w-4" />
                        <AlertTitle>Camera Access Required</AlertTitle>
                        <AlertDescription>
                          Camera access was denied or is unavailable. Please enable it in your browser settings.
+                       </AlertDescription>
+                   </Alert>
+                )}
+                 {/* Informative message when camera tab is selected but permission not yet granted/denied */}
+                {hasCameraPermission === null && showCamera && (
+                    <Alert variant="default">
+                         <AlertCircle className="h-4 w-4" />
+                       <AlertTitle>Awaiting Camera Permission</AlertTitle>
+                       <AlertDescription>
+                         Please allow camera access in your browser prompt.
                        </AlertDescription>
                    </Alert>
                 )}
@@ -257,12 +303,16 @@ export function RecipeSnap() {
            </Tabs>
 
            {previewUrl && (
-             <div className="mt-4 border rounded-lg overflow-hidden shadow-inner bg-muted/50 p-2">
+             <div className="mt-4 border rounded-lg overflow-hidden shadow-inner bg-muted/50 p-2 space-y-2">
                <img src={previewUrl} alt="Preview" className="w-full h-auto max-h-60 object-contain rounded-md" />
+                <Button onClick={handleClearImage} variant="outline" size="sm" className="w-full text-destructive hover:bg-destructive/10 border-destructive/50" disabled={!currentDataUri || loadingIdentify || loadingRecipe}>
+                   <XCircle className="mr-2 h-4 w-4" />
+                   Clear Image
+                </Button>
              </div>
            )}
 
-          <div className="flex gap-2 mt-4">
+          <div className="flex flex-col sm:flex-row gap-2 mt-4">
             <Button onClick={handleIdentify} disabled={loadingIdentify || loadingRecipe || !currentDataUri} className="w-full bg-primary hover:bg-primary/90 text-primary-foreground">
               {loadingIdentify ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <UtensilsCrossed className="mr-2 h-4 w-4" />}
               Identify Food
@@ -289,7 +339,7 @@ export function RecipeSnap() {
                      ))}
                    </ul>
                  ) : (
-                   !loadingIdentify && <p className="text-muted-foreground text-sm">No items identified yet. Upload an image and click "Identify Food".</p>
+                   !loadingIdentify && <p className="text-muted-foreground text-sm">{!currentDataUri ? 'Upload an image or capture a photo to start.' : 'No items identified yet. Click "Identify Food".'}</p>
                  )}
                </CardContent>
              </Card>
@@ -331,7 +381,7 @@ export function RecipeSnap() {
                      </div>
                    </ScrollArea>
                  ) : (
-                   <p className="text-muted-foreground text-sm">No recipe generated yet. Identify food items first, then click "Generate Recipe".</p>
+                   <p className="text-muted-foreground text-sm">{!currentDataUri ? 'Upload an image or capture a photo first.' : identifiedItems.length === 0 ? 'Identify food items first, then click "Generate Recipe".' : 'Click "Generate Recipe" to get cooking instructions.'}</p>
                  )}
                </CardContent>
              </Card>
@@ -339,10 +389,8 @@ export function RecipeSnap() {
         </div>
       </CardContent>
        <CardFooter className="p-4 bg-muted/50 text-center text-xs text-muted-foreground border-t">
-          Powered by AI. Recipes are suggestions and may need adjustments.
+          Powered by AI. Recipes are suggestions and may need adjustments. Always ensure food safety.
        </CardFooter>
     </Card>
   );
 }
-
-    
