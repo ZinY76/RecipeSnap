@@ -2,6 +2,7 @@
 "use client";
 
 import React, { useState, useRef, type ChangeEvent, useEffect } from "react";
+import Image from 'next/image'; // Import next/image
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -12,7 +13,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { identifyFoodItems, type IdentifyFoodItemsOutput } from "@/ai/flows/identify-food";
 import { generateRecipe, type GenerateRecipeOutput } from "@/ai/flows/generate-recipe";
-import { Camera, ChefHat, ImageUp, Loader2, UtensilsCrossed, AlertCircle, XCircle } from "lucide-react"; // Added XCircle
+import { Camera, ChefHat, ImageUp, Loader2, UtensilsCrossed, AlertCircle, XCircle } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 
@@ -24,7 +25,7 @@ export function RecipeSnap() {
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [currentDataUri, setCurrentDataUri] = useState<string | null>(null);
   const [showCamera, setShowCamera] = useState(false);
-  const [hasCameraPermission, setHasCameraPermission] = useState<boolean | null>(null); // Added state for camera permission
+  const [hasCameraPermission, setHasCameraPermission] = useState<boolean | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -189,7 +190,7 @@ export function RecipeSnap() {
       const result: IdentifyFoodItemsOutput = await identifyFoodItems({ photoDataUri: currentDataUri });
       setIdentifiedItems(result.foodItems || []);
       if (!result.foodItems || result.foodItems.length === 0) {
-         toast({ title: "No Food Found", description: "Could not identify any food items in the image.", variant: "default" }); // Changed to default variant
+         toast({ title: "No Food Found", description: "Could not identify any food items in the image.", variant: "default" });
       }
     } catch (error) {
       console.error("Error identifying food:", error);
@@ -235,9 +236,19 @@ export function RecipeSnap() {
 
   return (
     <Card className="w-full shadow-lg rounded-lg overflow-hidden bg-card">
-      <CardHeader className="bg-primary text-primary-foreground p-6">
-        <CardTitle className="text-3xl font-bold flex items-center gap-2"><ChefHat size={32}/> MyRecipeSnap</CardTitle>
-        <CardDescription className="text-primary-foreground/80">Upload a photo or use your camera to identify food and get a recipe!</CardDescription>
+       {/* Updated CardHeader */}
+      <CardHeader className="bg-secondary text-secondary-foreground p-6 flex flex-row justify-between items-center">
+        <div>
+          <CardTitle className="text-3xl font-bold flex items-center gap-2"><ChefHat size={32}/> MyRecipeSnap</CardTitle>
+          <CardDescription className="text-secondary-foreground/80">Upload a photo or use your camera to identify food and get a recipe!</CardDescription>
+        </div>
+         <Image
+            src="https://picsum.photos/50/50" // Placeholder logo
+            alt="MyRecipeSnap Logo"
+            width={50}
+            height={50}
+            className="rounded-full"
+          />
       </CardHeader>
       <CardContent className="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Image Input Section */}
@@ -305,6 +316,7 @@ export function RecipeSnap() {
            {previewUrl && (
              <div className="mt-4 border rounded-lg overflow-hidden shadow-inner bg-muted/50 p-2 space-y-2">
                <img src={previewUrl} alt="Preview" className="w-full h-auto max-h-60 object-contain rounded-md" />
+                {/* Clear Image Button */}
                 <Button onClick={handleClearImage} variant="outline" size="sm" className="w-full text-destructive hover:bg-destructive/10 border-destructive/50" disabled={!currentDataUri || loadingIdentify || loadingRecipe}>
                    <XCircle className="mr-2 h-4 w-4" />
                    Clear Image
@@ -394,3 +406,5 @@ export function RecipeSnap() {
     </Card>
   );
 }
+
+    
