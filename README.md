@@ -1,5 +1,3 @@
-# Firebase Studio
-
+# RecipeSnap
 This is a NextJS starter in Firebase Studio.
-
-To get started, take a look at src/app/page.tsx.
+Upload a photo or use your camera to identify food and get a recipe!
